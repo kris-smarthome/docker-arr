@@ -25,4 +25,4 @@ sudo useradd media -u 10000 -g 10000 -s /bin/bash
 ```
 
 Set the media user password  `passwd media` using `YOUR_PASSWORD`
-Add the default user to the media group `sudo usermod -aG media $USER`
+Add your user to the media group `sudo usermod -aG media $USER`
