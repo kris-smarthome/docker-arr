@@ -38,8 +38,6 @@ services:
     # Persist config and mount downloads/media directories
     volumes:
       - prowlarr:/config
-      - ${MEDIA}/downloads:/data/downloads:rw
-      - ${MEDIA}:/media:rw
     networks:
       # Attach to Traefik and internal media networks
       - traefik
@@ -157,4 +155,4 @@ services:
       volumes:
         - qbittorrent:/config
         - ${MEDIA}/downloads:/data/downloads:rw
-        - ${MEDIA}:/media:rw
+
