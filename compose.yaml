@@ -1,16 +1,17 @@
 # Docker Compose for an ARR media stack
 # Includes: Prowlarr (indexers), Radarr (movies), Sonarr (TV),
-# qBittorrent (torrent client), Recyclarr (TRaSH sync), FlareSolverr (CF bypass).
-# Uses an external Traefik network and an internal media bridge.
+# qBittorrent (torrent client), Recyclarr (TRaSH sync), FlareSolverr (optional CF bypass).
+# Attaches to an external Traefik network (optional) and an internal media bridge.
 networks:
   traefik:
     name: "traefik"
     external: true
-    # External reverse-proxy network; must exist beforehand (e.g., Traefik stack)
+    # External reverse-proxy network; create with `docker network create traefik`.
+    # Optional: remove this network and related service attachments if not using Traefik.
   media:
     name: "media"
     driver: bridge
-    # Private bridge for inter-service traffic and file sharing
+    # Private bridge for inter-service traffic and local file sharing
 
 volumes:
   prowlarr:
@@ -25,17 +26,17 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     restart: unless-stopped
-    # Exposes Prowlarr web UI
+    # Web UI
     ports:
       - 9696:9696
     security_opt:
       - no-new-privileges:true
-    # Run apps with non-root UID/GID and set timezone
+    # Run as non-root user/group and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist config and mount downloads/media directories
+    # Persist application configuration
     volumes:
       - prowlarr:/config
     networks:
@@ -48,17 +49,17 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
-    # Exposes Radarr web UI
+    # Web UI
     ports:
       - 7878:7878
     security_opt:
       - no-new-privileges:true
-    # Run apps with non-root UID/GID and set timezone
+    # Run as non-root user/group and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist config and mount downloads/media directories
+    # Persist config and bind media/downloads
     volumes:
       - radarr:/config
       - ${MEDIA}/downloads:/data/downloads:rw
@@ -73,17 +74,17 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
-    # Exposes Sonarr web UI
+    # Web UI
     ports:
       - 8989:8989
     security_opt:
       - no-new-privileges:true
-    # Run apps with non-root UID/GID and set timezone
+    # Run as non-root user/group and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist config and mount downloads/media directories
+    # Persist config and bind media/downloads
     volumes:
       - sonarr:/config
       - ${MEDIA}/downloads:/data/downloads:rw
@@ -118,41 +119,40 @@ services:
       - no-new-privileges:true
     environment:
       - TZ=${TZ}
-    # Exposes FlareSolverr service port, not required, uncomment to allow.
+    # Service port is not published by default; uncomment below to expose externally.
     #ports:
     # -8191:8191
     networks:
       - media
 
-    # qBittorrent: torrent client (WebUI on 8080)
-    qbittorrent:
-      container_name: qbittorrent
-      image: lscr.io/linuxserver/qbittorrent:latest
-      restart: unless-stopped
-      security_opt:
-        - no-new-privileges:true
-      # Light memory cap to prevent overuse
-      deploy:
-        resources:
-          limits:
-            memory: 512M
-      # Web UI, torrenting ports, and runtime user settings
-      environment:
-        - PUID=${PUID}
-        - PGID=${PGID}
-        - TZ=${TZ}
-        - WEBUI_PORT=8080
-        - TORRENTING_PORT=6881
-      # Expose Web UI and torrent ports (TCP/UDP)
-      ports:
-        -  8080:8080
-        -  6881:6881
-        -  6881:6881/udp
-      networks:
-       - traefik
-       - media
-      # Persist qBittorrent config and share downloads/media
-      volumes:
-        - qbittorrent:/config
-        - ${MEDIA}/downloads:/data/downloads:rw
-
+  # qBittorrent: torrent client (Web UI on 8080). Default creds: admin / adminadmin
+  qbittorrent:
+    container_name: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Light memory cap to prevent overuse
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    # Runtime user settings and ports
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - WEBUI_PORT=8080
+      - TORRENTING_PORT=6881
+    # Expose Web UI and torrent ports (TCP/UDP)
+    ports:
+      -  8080:8080
+      -  6881:6881
+      -  6881:6881/udp
+    networks:
+      - traefik
+      - media
+    # Persist qBittorrent config and bind downloads
+    volumes:
+      - qbittorrent:/config
+      - ${MEDIA}/downloads:/data/downloads:rw
