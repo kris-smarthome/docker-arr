@@ -118,9 +118,9 @@ services:
       - no-new-privileges:true
     environment:
       - TZ=${TZ}
-    # Exposes FlareSolverr service port
-    ports:
-      -8191:8191
+    # Exposes FlareSolverr service port, not required, uncomment to allow.
+    #ports:
+    # -8191:8191
     networks:
       - media
 
