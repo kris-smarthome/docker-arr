@@ -1,17 +1,25 @@
+# Networks: shared Docker networks used by these services
 networks:
+  # External reverse-proxy network (provided by Traefik stack)
   traefik:
     name: "traefik"
     external: true
+  # Internal bridge network for media apps to communicate
   media:
     name: "media"
     driver: bridge
 
+# Volumes: named persistent storage for application configs
 volumes:
+  # Prowlarr configuration/data
   prowlarr:
+  # Radarr configuration/data
   radarr:
+  # Sonarr configuration/data
   sonarr:
   
 services:
+  # Prowlarr: Indexer manager; web UI on 9696; config in 'prowlarr' volume; on 'traefik' and 'media' networks.
   prowlarr:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
@@ -32,6 +40,7 @@ services:
       - traefik
       - media
 
+  # Radarr: Movie manager; web UI on 7878; config in 'radarr' volume; uses 'downloads' and 'media' mounts; on 'traefik' and 'media' networks.
   radarr:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
@@ -50,8 +59,9 @@ services:
       - ${MEDIA}:/media:rw
     networks:
       - traefik
-      - mdeia
-      
+      - media
+
+  # Sonarr: TV series manager; web UI on 8989; config in 'sonarr' volume; uses 'downloads' and 'media' mounts; on 'traefik' and 'media' networks.
   sonarr:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
@@ -72,6 +82,7 @@ services:
       - traefik
       - media
 
+  # Recyclarr: Sync profiles/settings for Radarr/Sonarr; config in './recyclarr-app'.
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr
     container_name: recyclarr
