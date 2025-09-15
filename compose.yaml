@@ -1,17 +1,16 @@
 # Docker Compose for an ARR media stack
 # Includes: Prowlarr (indexers), Radarr (movies), Sonarr (TV),
-# qBittorrent (torrent client), Recyclarr (TRaSH sync), FlareSolverr (optional CF bypass).
-# Attaches to an external Traefik network (optional) and an internal media bridge.
+# qBittorrent (torrent client), Recyclarr (TRaSH sync), FlareSolverr (CF bypass).
+# Uses an external Traefik network and an internal media bridge.
 networks:
   traefik:
     name: "traefik"
     external: true
-    # External reverse-proxy network; create with `docker network create traefik`.
-    # Optional: remove this network and related service attachments if not using Traefik.
+    # External reverse-proxy network; must exist beforehand (e.g., Traefik stack)
   media:
     name: "media"
     driver: bridge
-    # Private bridge for inter-service traffic and local file sharing
+    # Private bridge for inter-service traffic and file sharing
 
 volumes:
   prowlarr:
@@ -26,17 +25,23 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest
     container_name: prowlarr
     restart: unless-stopped
-    # Web UI
-    ports:
-      - 9696:9696
+    # Exposes Prowlarr web UI
+    #ports:
+    #  - 9696:9696
     security_opt:
       - no-new-privileges:true
-    # Run as non-root user/group and set timezone
+    # Run apps with non-root UID/GID and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist application configuration
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.prowlarr.rule=Host(prowlarr.`${ACME_DOMAIN}`)
+      - traefik.http.routers.prowlarr.entrypoints=websecure
+      - traefik.http.routers.prowlarr.tls.certresolver=letsencrypt
+      - traefik.http.services.prowlarr.loadbalancer.server.port=9696
+    # Persist config and mount downloads/media directories
     volumes:
       - prowlarr:/config
     networks:
@@ -49,17 +54,23 @@ services:
     image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     restart: unless-stopped
-    # Web UI
-    ports:
-      - 7878:7878
+    # Exposes Radarr web UI
+    #ports:
+    #  - 7878:7878
     security_opt:
       - no-new-privileges:true
-    # Run as non-root user/group and set timezone
+    # Run apps with non-root UID/GID and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist config and bind media/downloads
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.radarr.rule=Host(radarr.`${ACME_DOMAIN}`)
+      - traefik.http.routers.radarr.entrypoints=websecure
+      - traefik.http.routers.radarr.tls.certresolver=letsencrypt
+      - traefik.http.services.radarr.loadbalancer.server.port=7878    
+    # Persist config and mount downloads/media directories
     volumes:
       - radarr:/config
       - ${MEDIA}/downloads:/data/downloads:rw
@@ -74,17 +85,23 @@ services:
     image: lscr.io/linuxserver/sonarr:latest
     container_name: sonarr
     restart: unless-stopped
-    # Web UI
-    ports:
-      - 8989:8989
+    # Exposes Sonarr web UI
+    #ports:
+    #  - 8989:8989
     security_opt:
       - no-new-privileges:true
-    # Run as non-root user/group and set timezone
+    # Run apps with non-root UID/GID and set timezone
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
-    # Persist config and bind media/downloads
+    # Persist config and mount downloads/media directories
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.sonarr.rule=Host(sonarr.`${ACME_DOMAIN}`)
+      - traefik.http.routers.sonarr.entrypoints=websecure
+      - traefik.http.routers.sonarr.tls.certresolver=letsencrypt
+      - traefik.http.services.sonarr.loadbalancer.server.port=8989
     volumes:
       - sonarr:/config
       - ${MEDIA}/downloads:/data/downloads:rw
@@ -119,13 +136,13 @@ services:
       - no-new-privileges:true
     environment:
       - TZ=${TZ}
-    # Service port is not published by default; uncomment below to expose externally.
+    # Exposes FlareSolverr service port, not required, uncomment to allow.
     #ports:
     # -8191:8191
     networks:
       - media
 
-  # qBittorrent: torrent client (Web UI on 8080). Default creds: admin / adminadmin
+    # qBittorrent: torrent client (WebUI on 8080)
   qbittorrent:
     container_name: qbittorrent
     image: lscr.io/linuxserver/qbittorrent:latest
@@ -137,7 +154,7 @@ services:
       resources:
         limits:
           memory: 512M
-    # Runtime user settings and ports
+    # Web UI, torrenting ports, and runtime user settings
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -149,10 +166,17 @@ services:
       -  8080:8080
       -  6881:6881
       -  6881:6881/udp
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.qbittorrent.rule=Host(qbittorrent.`${ACME_DOMAIN}`)
+      - traefik.http.routers.qbittorrent.entrypoints=websecure
+      - traefik.http.routers.qbittorrent.tls.certresolver=letsencrypt
+      - traefik.http.services.qbittorrent.loadbalancer.server.port=8080
     networks:
       - traefik
       - media
-    # Persist qBittorrent config and bind downloads
+    # Persist qBittorrent config and share downloads/media
     volumes:
       - qbittorrent:/config
       - ${MEDIA}/downloads:/data/downloads:rw
+

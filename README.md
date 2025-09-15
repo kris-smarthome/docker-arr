@@ -82,15 +82,20 @@ Web UIs (on the Docker host):
 
 ## Volumes and Paths
 
-- App configs are persisted in named volumes: `prowlarr`, `radarr`, `sonarr`, `qbittorrent`.
-- Media/downloads are host bind mounts from `MEDIA`:
-  - Host `${MEDIA}/downloads` → containers `/data/downloads`
-  - Host `${MEDIA}` → containers `/media`
+- App configs persist in named volumes: `prowlarr`, `radarr`, `sonarr`, `qbittorrent`.
+- Bind mounts from `MEDIA` are used for libraries and downloads.
+- Service mounts summary:
+  - Prowlarr: `prowlarr:/config` only
+  - Radarr: `radarr:/config`, `${MEDIA}/downloads:/data/downloads`, `${MEDIA}:/media`
+  - Sonarr: `sonarr:/config`, `${MEDIA}/downloads:/data/downloads`, `${MEDIA}:/media`
+  - qBittorrent: `qbittorrent:/config`, `${MEDIA}/downloads:/data/downloads`
+  - Recyclarr: `./recyclarr-app:/config`
 
 ## Notes on Traefik
 
-- The stack attaches to an external Docker network `traefik` for reverse‑proxying.
-- If you don’t use Traefik, you can remove the `traefik` network references in `compose.yaml:1` and keep direct port access.
+- Services attached to the external `traefik` network: Prowlarr, Radarr, Sonarr, qBittorrent.
+- FlareSolverr uses only the internal `media` network; Recyclarr does not require external networking for basic use.
+- If you don’t use Traefik, remove the `traefik` network block and those service attachments in `compose.yaml:1`; direct ports remain available.
 
 ## Recyclarr
 
