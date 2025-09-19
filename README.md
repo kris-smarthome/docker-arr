@@ -123,5 +123,3 @@ cp .env .env.example 2>/dev/null || true  # optional backup
 ${EDITOR:-nano} .env
 docker compose up -d
 ```
-
-If you want, I can also validate the Compose file and address any issues before you deploy.
